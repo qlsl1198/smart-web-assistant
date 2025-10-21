@@ -1,6 +1,12 @@
 node_modules/
 .env
+.env.local
+.env.production
 *.log
 .DS_Store
 *.tmp
 *.temp
+
+# API Keys and sensitive data
+config.js
+secrets/

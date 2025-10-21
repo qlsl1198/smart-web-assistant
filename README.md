@@ -13,10 +13,14 @@ JavaScript, HTML5/CSS3, Chrome Extension Manifest V3, Google Gemini API, Service
 
 ## Installation
 1. Clone this repository
-2. Open Chrome and go to chrome://extensions/
-3. Enable Developer mode
-4. Click 'Load unpacked' and select the project folder
-5. The extension will be available in your browser
+2. **Set up API Key** (Required):
+   - Get a free Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Open Chrome DevTools (F12) → Console
+   - Run: `window.envLoader.saveApiKey('YOUR_API_KEY_HERE')`
+3. Open Chrome and go to chrome://extensions/
+4. Enable Developer mode
+5. Click 'Load unpacked' and select the project folder
+6. The extension will be available in your browser
 
 ## Usage
 - Click the extension icon to open the popup

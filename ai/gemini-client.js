@@ -4,14 +4,23 @@
  */
 class GeminiClient {
     constructor() {
-        this.apiKey = 'AIzaSyByptWj8LM1rDpl-myiUogE0ePQPDGGeQk';
-        this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-        this.model = 'gemini-2.0-flash'; // Free tier model
+        // Load environment variables
+        this.env = window.envLoader ? window.envLoader.getAll() : {
+            GEMINI_API_KEY: 'YOUR_API_KEY_HERE',
+            GEMINI_MODEL: 'gemini-2.0-flash',
+            GEMINI_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
+            GEMINI_MAX_TOKENS: 512,
+            GEMINI_TEMPERATURE: 0.7
+        };
+        
+        this.apiKey = this.env.GEMINI_API_KEY;
+        this.baseUrl = this.env.GEMINI_BASE_URL;
+        this.model = this.env.GEMINI_MODEL;
         this.defaultConfig = {
-            temperature: 0.7,
+            temperature: this.env.GEMINI_TEMPERATURE,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 512 // Reduced for free tier
+            maxOutputTokens: this.env.GEMINI_MAX_TOKENS
         };
     }
 
