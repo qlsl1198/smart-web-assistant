@@ -6,7 +6,7 @@ class GeminiClient {
     constructor() {
         // Load environment variables
         this.env = window.envLoader ? window.envLoader.getAll() : {
-            GEMINI_API_KEY: 'AIzaSyByptWj8LM1rDpl-myiUogE0ePQPDGGeQk',
+            GEMINI_API_KEY: 'YOUR_API_KEY_HERE',
             GEMINI_MODEL: 'gemini-2.0-flash',
             GEMINI_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
             GEMINI_MAX_TOKENS: 512,
