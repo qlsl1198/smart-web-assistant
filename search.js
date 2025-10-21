@@ -1,6 +1,6 @@
 /**
  * Smart Web Assistant - AI Search Interface
- * Dedicated search functionality with real-time AI search
+ * 간단하고 직접적인 AI 검색 기능
  */
 class AISearch {
     constructor() {
@@ -30,37 +30,67 @@ class AISearch {
 
     async loadPageContent() {
         try {
-            // 현재 탭의 콘텐츠 가져오기
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs[0]) {
-                // Content script에 메시지 전송
-                chrome.tabs.sendMessage(tabs[0].id, { action: 'getPageContent' }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.error('Failed to get page content:', chrome.runtime.lastError);
-                        this.showError('Failed to load page content. Please refresh the page and try again.');
-                    } else if (response?.content) {
-                        this.pageContent = response.content;
-                        console.log('Page content loaded:', this.pageContent);
+            // URL 파라미터에서 tabId 가져오기
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabId = urlParams.get('tabId');
+            const targetUrl = urlParams.get('url');
+            
+            console.log('Loading content from tabId:', tabId, 'URL:', targetUrl);
+            
+            if (tabId && targetUrl) {
+                try {
+                    const results = await chrome.scripting.executeScript({
+                        target: { tabId: parseInt(tabId) },
+                        func: () => {
+                            return {
+                                title: document.title,
+                                url: window.location.href,
+                                text: document.body.innerText || document.body.textContent || '',
+                                domain: window.location.hostname
+                            };
+                        }
+                    });
+                    
+                    if (results && results[0] && results[0].result) {
+                        this.pageContent = results[0].result;
+                        console.log('웹페이지 내용 로드됨:', this.pageContent.text.length, '자');
+                        this.showToast('✅ 웹페이지 내용 로드 완료!');
                     } else {
-                        this.showError('No content available on this page.');
+                        this.showError('웹페이지 내용을 가져올 수 없습니다.');
                     }
-                });
+                } catch (scriptError) {
+                    console.log('Script execution failed:', scriptError.message);
+                    this.showError('웹페이지 내용을 읽을 수 없습니다.');
+                }
+            } else {
+                this.showError('웹페이지 정보를 찾을 수 없습니다. 웹페이지에서 AI Search 버튼을 클릭해주세요.');
             }
         } catch (error) {
             console.error('Error loading page content:', error);
-            this.showError('Failed to load page content.');
+            this.showError('페이지 로드 실패: ' + error.message);
         }
+    }
+    
+    createFallbackContent(tab) {
+        this.pageContent = {
+            title: tab.title || 'Unknown Page',
+            url: tab.url || 'Unknown URL',
+            text: `페이지 제목: ${tab.title || 'Unknown Page'}\nURL: ${tab.url || 'Unknown URL'}`,
+            domain: tab.url ? new URL(tab.url).hostname : 'unknown'
+        };
+        console.log('Fallback content created');
+        this.showToast('✅ 기본 정보로 검색 준비 완료!');
     }
 
     async performSearch() {
         const query = this.searchInput.value.trim();
         if (!query) {
-            this.showError('Please enter a search query.');
+            this.showError('검색어를 입력해주세요.');
             return;
         }
 
         if (!this.pageContent) {
-            this.showError('Page content not loaded. Please try again.');
+            this.showError('페이지 내용이 로드되지 않았습니다. 다시 시도해주세요.');
             return;
         }
 
@@ -71,16 +101,17 @@ class AISearch {
         this.showLoading();
 
         try {
-            const results = await this.gemini.search(this.pageContent.text, query);
+            console.log('Searching with query:', query);
+            console.log('Page text length:', this.pageContent.text.length);
+            
+            // 페이지 내용과 질문을 함께 전달
+            const prompt = `다음은 웹페이지의 내용입니다:\n\n${this.pageContent.text}\n\n사용자 질문: ${query}\n\n위 페이지 내용을 바탕으로 질문에 답변해주세요.`;
+            
+            const results = await this.gemini.generateText(prompt);
             this.displayResults(query, results);
         } catch (error) {
             console.error('Search error:', error);
-            // API 오류인 경우 사용자에게 친화적인 메시지 표시
-            if (error.message.includes('503') || error.message.includes('API Error')) {
-                this.showError('AI 서비스가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.');
-            } else {
-                this.showError(`Search failed: ${error.message}`);
-            }
+            this.showError('검색 실패: ' + error.message);
         } finally {
             this.isSearching = false;
             this.updateSearchButton(false);
@@ -90,10 +121,10 @@ class AISearch {
     updateSearchButton(isSearching) {
         if (isSearching) {
             this.searchBtn.disabled = true;
-            this.searchBtn.innerHTML = '<span>⏳</span> Searching...';
+            this.searchBtn.innerHTML = '<span>⏳</span> 검색 중...';
         } else {
             this.searchBtn.disabled = false;
-            this.searchBtn.innerHTML = '<span>🔍</span> Search';
+            this.searchBtn.innerHTML = '<span>🔍</span> 검색';
         }
     }
 
@@ -102,7 +133,7 @@ class AISearch {
         this.resultsContainer.innerHTML = `
             <div class="loading">
                 <div class="spinner"></div>
-                <p>Searching with AI...</p>
+                <p>AI로 검색 중...</p>
             </div>
         `;
     }
@@ -110,11 +141,11 @@ class AISearch {
     displayResults(query, results) {
         const html = `
             <div class="result-item">
-                <div class="result-title">🔍 Search Results for: "${query}"</div>
+                <div class="result-title">🔍 "${query}" 검색 결과</div>
                 <div class="result-content">${results}</div>
                 <div class="result-meta">
-                    <span>AI-powered search</span>
-                    <span class="relevance-score">High Relevance</span>
+                    <span>AI 검색</span>
+                    <span class="relevance-score">높은 관련성</span>
                 </div>
             </div>
         `;
@@ -124,27 +155,27 @@ class AISearch {
     }
 
     attachResultActions(results) {
-        // Copy functionality
+        // 복사 기능
         const copyBtn = document.createElement('button');
         copyBtn.className = 'btn copy-btn';
-        copyBtn.innerHTML = '📋 Copy Results';
+        copyBtn.innerHTML = '📋 복사';
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(results).then(() => {
-                this.showToast('Results copied to clipboard!');
+                this.showToast('결과가 클립보드에 복사되었습니다!');
             }).catch(() => {
-                this.showToast('Failed to copy');
+                this.showToast('복사 실패');
             });
         });
 
-        // Close functionality
+        // 닫기 기능
         const closeBtn = document.createElement('button');
         closeBtn.className = 'btn btn-secondary';
-        closeBtn.innerHTML = '✕ Close';
+        closeBtn.innerHTML = '✕ 닫기';
         closeBtn.addEventListener('click', () => {
             window.close();
         });
 
-        // Add buttons to results
+        // 버튼들을 결과에 추가
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'actions';
         actionsDiv.appendChild(copyBtn);
@@ -158,10 +189,10 @@ class AISearch {
         this.resultsContainer.innerHTML = `
             <div class="no-results">
                 <div class="no-results-icon">❌</div>
-                <h3>Error</h3>
+                <h3>오류</h3>
                 <p>${message}</p>
                 <div class="actions">
-                    <button class="btn btn-secondary" onclick="window.close()">✕ Close</button>
+                    <button class="btn btn-secondary" onclick="window.close()">✕ 닫기</button>
                 </div>
             </div>
         `;
@@ -191,7 +222,7 @@ class AISearch {
     }
 }
 
-// Initialize search interface
+// 검색 인터페이스 초기화
 document.addEventListener('DOMContentLoaded', () => {
     new AISearch();
 });

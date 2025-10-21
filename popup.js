@@ -112,9 +112,34 @@ class SmartWebAssistant {
         }
     }
 
-    handleSearch() {
-        // 검색 전용 창 열기
-        this.openSearchWindow();
+    async handleSearch() {
+        try {
+            // 현재 활성 탭 정보 가져오기
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            const currentTab = tabs[0];
+            
+            if (currentTab && currentTab.url && 
+                !currentTab.url.startsWith('chrome-extension://') && 
+                !currentTab.url.startsWith('chrome://') &&
+                (currentTab.url.startsWith('http://') || currentTab.url.startsWith('https://'))) {
+                
+                // 웹페이지인 경우 URL을 파라미터로 전달
+                const searchUrl = chrome.runtime.getURL(`search.html?tabId=${currentTab.id}&url=${encodeURIComponent(currentTab.url)}`);
+                chrome.windows.create({
+                    url: searchUrl,
+                    type: 'popup',
+                    width: 800,
+                    height: 600,
+                    left: 100,
+                    top: 100
+                });
+            } else {
+                this.updateStatus('웹페이지에서만 사용 가능합니다', true);
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            this.updateStatus('Search failed', true);
+        }
     }
 
     async handleTranslate() {
@@ -305,24 +330,6 @@ class SmartWebAssistant {
         }
     }
 
-    openSearchWindow() {
-        try {
-            // 검색 전용 창 열기
-            chrome.windows.create({
-                url: chrome.runtime.getURL('search.html'),
-                type: 'popup',
-                width: 1000,
-                height: 700,
-                left: 100,
-                top: 100
-            });
-            
-            console.log('Opened search window');
-        } catch (error) {
-            console.error('Failed to open search window:', error);
-            this.showError('Failed to open search window');
-        }
-    }
 
     attachSummaryActions(summary) {
         const copyBtn = document.getElementById('copyBtn');

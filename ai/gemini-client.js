@@ -5,17 +5,28 @@
 class GeminiClient {
     constructor() {
         // Load environment variables
-        this.env = window.envLoader ? window.envLoader.getAll() : {
-            GEMINI_API_KEY: 'AIzaSyDRzjd_3O5GoY9i0FTaP6FaIXMEuprVtQ4',
+        console.log('GeminiClient constructor - window.envLoader:', window.envLoader);
+        
+        // API 키를 직접 설정 (환경 변수 우회)
+        this.env = {
+            GEMINI_API_KEY: 'your-api-key',
             GEMINI_MODEL: 'gemini-2.0-flash',
             GEMINI_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
             GEMINI_MAX_TOKENS: 512,
             GEMINI_TEMPERATURE: 0.7
         };
         
+        console.log('GeminiClient - Loaded env:', this.env);
+        
         this.apiKey = this.env.GEMINI_API_KEY;
         this.baseUrl = this.env.GEMINI_BASE_URL;
         this.model = this.env.GEMINI_MODEL;
+        
+        console.log('GeminiClient - Final config:', {
+            apiKey: this.apiKey,
+            baseUrl: this.baseUrl,
+            model: this.model
+        });
         this.defaultConfig = {
             temperature: this.env.GEMINI_TEMPERATURE,
             topK: 40,
@@ -38,17 +49,34 @@ class GeminiClient {
             try {
                 const config = { ...this.defaultConfig, ...options };
                 
-                const response = await fetch(`${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`, {
+                const url = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
+                console.log('API Request URL:', url);
+                console.log('API Request body:', JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: config
+                }));
+                
+                const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'User-Agent': 'Chrome-Extension/1.0'
+                    },
+                    mode: 'cors',
+                    credentials: 'omit',
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: config
                     })
                 });
+                
+                console.log('API Response status:', response.status);
+                console.log('API Response headers:', response.headers);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
+                    console.error('API Error Response:', errorData);
                     
                     // 503 오류인 경우 재시도
                     if (response.status === 503 && attempt < maxRetries) {

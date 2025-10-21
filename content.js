@@ -138,11 +138,49 @@ if (typeof window.contentAnalyzer === 'undefined') {
     }
 
     extractTextContent() {
-        const elementsToRemove = document.querySelectorAll('script, style, nav, header, footer, aside');
+        // 불필요한 요소들 제거
+        const elementsToRemove = document.querySelectorAll('script, style, nav, header, footer, aside, .ad, .advertisement, .sidebar');
         elementsToRemove.forEach(el => el.remove());
         
-        const mainContent = document.querySelector('main, article, .content, .post, .entry') || document.body;
-        return mainContent.innerText || mainContent.textContent || '';
+        // 메인 콘텐츠 영역 찾기
+        const mainContent = document.querySelector('main, article, .content, .post, .entry, .main-content, .page-content') || document.body;
+        
+        // 더 강력한 텍스트 추출
+        let text = '';
+        
+        // 1. innerText 사용 (가장 좋은 방법)
+        if (mainContent.innerText) {
+            text = mainContent.innerText;
+        }
+        // 2. textContent 사용 (대안)
+        else if (mainContent.textContent) {
+            text = mainContent.textContent;
+        }
+        // 3. 모든 텍스트 노드 수집
+        else {
+            const textNodes = [];
+            const walker = document.createTreeWalker(
+                mainContent,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.textContent.trim()) {
+                    textNodes.push(node.textContent.trim());
+                }
+            }
+            text = textNodes.join(' ');
+        }
+        
+        // 텍스트 정리
+        text = text
+            .replace(/\s+/g, ' ')  // 여러 공백을 하나로
+            .replace(/\n\s*\n/g, '\n')  // 빈 줄 제거
+            .trim();
+        
+        return text.substring(0, 15000); // 최대 15,000자로 제한
     }
 
     extractImages() {
